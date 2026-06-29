@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #075e54;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            height: 95vh;
+            background: #ffffff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #075e54;
+            color: white;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h3 {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .header .user-badge {
+            background: #128C7E;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+        }
+
+        .login-container {
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            gap: 12px;
+        }
+
+        .login-container h2 {
+            color: #075e54;
+            margin-bottom: 5px;
+        }
+
+        .login-container p {
+            color: #666;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .login-container input:focus {
+            border-color: #075e54;
+        }
+
+        .login-container .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #075e54;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .login-container .btn-login:hover {
+            background: #128C7E;
+        }
+
+        .login-container .btn-login:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .login-container .server-info {
+            font-size: 11px;
+            color: #999;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .chat-container {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .users-panel {
+            background: #f0f0f0;
+            padding: 8px 10px;
+            border-bottom: 1px solid #ddd;
+            max-height: 130px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .users-panel h4 {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        .user-item {
+            background: white;
+            padding: 6px 12px;
+            margin: 3px 0;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .user-item:hover:not(.disabled) {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+        }
+
+        .user-item.active {
+            background: #c8e6c9;
+            border-color: #2E7D32;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+        }
+
+        .user-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .user-item .status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .user-item .status.online {
+            background: #4CAF50;
+        }
+
+        .user-item .status.offline {
+            background: #f44336;
+        }
+
+        .user-item .status.ocupado {
+            background: #ff9800;
+        }
+
+        .user-item .user-name {
+            flex: 1;
+        }
+
+        .user-item .badge-msgs {
+            background: #f44336;
+            color: white;
+            border-radius: 50%;
+            padding: 1px 6px;
+            font-size: 10px;
+            min-width: 18px;
+            text-align: center;
+            margin-left: 6px;
+        }
+
+        .messages-area {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #ece5dd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .empty-chat .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 4px 0;
+            word-wrap: break-word;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.received {
+            background: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .message.sent {
+            background: #dcf8c6;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message .time {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 10px;
+            gap: 10px;
+            background: #f0f0f0;
+            border-top: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .input-area input:disabled {
+            background: #e0e0e0;
+            cursor: not-allowed;
+        }
+
+        .input-area button {
+            padding: 10px 20px;
+            background: #075e54;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .input-area button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .input-area button:hover:not(:disabled) {
+            background: #128C7E;
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: #666;
+            padding: 4px 15px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        .logout-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 10px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: 0.3s;
+        }
+
+        .logout-btn:hover {
+            opacity: 0.8;
+        }
+
+        .debug-panel {
+            background: #1a1a2e;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 9px;
+            padding: 4px 8px;
+            max-height: 40px;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .debug-panel .log-line {
+            margin: 1px 0;
+            opacity: 0.8;
+        }
+
+        .debug-panel .log-line.error {
+            color: #ff4444;
+        }
+
+        .debug-panel .log-line.success {
+            color: #44ff44;
+        }
+
+        .debug-panel .log-line.warning {
+            color: #ffaa00;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .toast.info { background: #2196F3; }
+        .toast.success { background: #4CAF50; }
+        .toast.error { background: #f44336; }
+        .toast.warning { background: #ff9800; }
+
+        .error-msg {
+            color: #f44336;
+            font-size: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .success-msg {
+            color: #4CAF50;
+            font-size: 12px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .estado-llamada {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .estado-llamada.conectado {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .estado-llamada.llamando {
+            background: #ff9800;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+
+        .estado-llamada.desconectado {
+            background: #f44336;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .server-status {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 6px;
+            display: inline-block;
+        }
+
+        .server-status.online {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .server-status.offline {
+            background: #f44336;
+            color: white;
+        }
+
+        .server-status.checking {
+            background: #ff9800;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<div class="container">
+    <div class="header">
+        <h3>💬 Chat P2P</h3>
+        <div>
+            <span class="user-badge" id="miNombreBadge">Sin nombre</span>
+            <span id="estadoLlamada" class="estado-llamada desconectado">⚪ Libre</span>
+            <button class="logout-btn" onclick="cerrarSesion()" style="display:none;" id="logoutBtn">Salir</button>
+        </div>
+    </div>
+
+    <div id="loginPanel" class="login-container">
+        <h2>🔐 Bienvenido</h2>
+        <p>Ingresa tu nombre para chatear</p>
+        <input type="text" id="userNameInput" placeholder="Nombre de usuario" maxlength="20">
+        <button class="btn-login" onclick="login()">🚀 Conectar</button>
+        <div id="mensajeLogin" class="error-msg"></div>
+        <div class="server-info">
+            <span class="server-status checking" id="serverStatus">🔄 Conectando al servidor...</span>
+        </div>
+    </div>
+
+    <div id="chatPanel" class="chat-container">
+        <div id="statusBar" class="status-text">🟢 Conectado</div>
+
+        <div class="users-panel" id="usersPanel">
+            <h4>👥 Usuarios en línea</h4>
+            <div id="userList"></div>
+        </div>
+
+        <div class="messages-area" id="messagesArea"></div>
+
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Escribe un mensaje..." disabled>
+            <button onclick="enviarMensaje()" id="sendBtn" disabled>📨</button>
+        </div>
+
+        <div class="debug-panel" id="debugPanel"></div>
+    </div>
+</div>
+
+<script>
+    // ============================================
+    // CONFIGURACIÓN - DETECTA AUTOMÁTICAMENTE
+    // ============================================
+    // Para Render: usa el mismo host
+    const SERVER_HOST = window.location.hostname;
+    const SERVER_PORT = window.location.port || 443;
+    const SERVER_PATH = '/peerjs';
+    const SERVER_SECURE = window.location.protocol === 'https:';
+    
+    const STORAGE_KEY = 'chat_historial_';
+
+    // ============================================
+    // VARIABLES GLOBALES
+    // ============================================
+    let miId = '';
+    let miNombre = '';
+    let peer = null;
+    let peerId = '';
+
+    const conexiones = new Map();
+    const historialMensajes = new Map();
+
+    let usuarioSeleccionado = null;
+    let peerIdSeleccionado = null;
+    let llamandoA = null;
+    let timeoutLlamada = null;
+
+    let heartbeatInterval = null;
+    let estadoActual = 'libre';
+    let peersActivos = [];
+
+    // ============================================
+    // TOAST
+    // ============================================
+    function mostrarToast(mensaje, tipo = 'info', duracion = 3000) {
+        const toast = document.getElementById('toast');
+        toast.textContent = mensaje;
+        toast.className = `toast ${tipo}`;
+        toast.style.display = 'block';
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(() => {
+            toast.style.display = 'none';
+        }, duracion);
+    }
+
+    // ============================================
+    // DEBUG
+    // ============================================
+    function logDebug(mensaje, tipo = 'info') {
+        const panel = document.getElementById('debugPanel');
+        if (panel) {
+            panel.style.display = 'block';
+            const line = document.createElement('div');
+            line.className = `log-line ${tipo}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
+            panel.appendChild(line);
+            panel.scrollTop = panel.scrollHeight;
+            while (panel.children.length > 20) {
+                panel.removeChild(panel.firstChild);
+            }
+        }
+        console.log(`[${tipo}]`, mensaje);
+    }
+
+    function actualizarEstadoUI(estado, texto) {
+        const el = document.getElementById('estadoLlamada');
+        if (el) {
+            el.className = `estado-llamada ${estado}`;
+            el.textContent = texto;
+        }
+        estadoActual = estado;
+    }
+
+    function actualizarServerStatus(estado, texto) {
+        const el = document.getElementById('serverStatus');
+        if (el) {
+            el.className = `server-status ${estado}`;
+            el.textContent = texto;
+        }
+    }
+
+    // ============================================
+    // ALMACENAMIENTO LOCAL
+    // ============================================
+    function guardarHistorialLocal(peerIdDestino, mensajes) {
+        try {
+            const key = STORAGE_KEY + miId + '_' + peerIdDestino;
+            localStorage.setItem(key, JSON.stringify(mensajes));
+        } catch (e) {}
+    }
+
+    function cargarHistorialLocal(peerIdDestino) {
+        try {
+            const key = STORAGE_KEY + miId + '_' + peerIdDestino;
+            const data = localStorage.getItem(key);
+            if (data) return JSON.parse(data);
+        } catch (e) {}
+        return null;
+    }
+
+    function obtenerHistorial(peerIdDestino) {
+        if (!historialMensajes.has(peerIdDestino)) {
+            const localData = cargarHistorialLocal(peerIdDestino);
+            historialMensajes.set(peerIdDestino, localData || []);
+        }
+        return historialMensajes.get(peerIdDestino);
+    }
+
+    function guardarHistorial(peerIdDestino) {
+        const mensajes = historialMensajes.get(peerIdDestino);
+        if (mensajes) {
+            guardarHistorialLocal(peerIdDestino, mensajes);
+        }
+    }
+
+    // ============================================
+    // PEERJS - CONECTAR AL SERVIDOR
+    // ============================================
+    function iniciarPeerJS() {
+        return new Promise((resolve, reject) => {
+            peerId = `${miNombre}-${Date.now().toString(36).slice(-6)}`;
+            
+            logDebug(`🔄 Conectando a PeerServer: ${SERVER_HOST}`, 'info');
+            actualizarServerStatus('checking', '🔄 Conectando...');
+            
+            const config = {
+                debug: 2,
+                host: SERVER_HOST,
+                port: SERVER_PORT,
+                path: SERVER_PATH,
+                secure: SERVER_SECURE,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' }
+                    ]
+                }
+            };
+
+            logDebug(`📡 Conectando a: ${SERVER_HOST}:${SERVER_PORT}${SERVER_PATH}`, 'info');
+
+            peer = new Peer(peerId, config);
+
+            peer.on('open', (id) => {
+                logDebug(`✅ PeerJS conectado con ID: ${id}`, 'success');
+                actualizarServerStatus('online', '🟢 Servidor disponible');
+                mostrarToast('✅ Conectado al servidor', 'success');
+                actualizarEstadoUI('desconectado', '⚪ Libre');
+                resolve(id);
+            });
+
+            peer.on('connection', (conn) => {
+                logDebug(`📥 Conexión entrante de: ${conn.peer}`, 'info');
+                manejarConexionEntrante(conn);
+            });
+
+            peer.on('error', (err) => {
+                logDebug(`❌ Error en PeerJS: ${err.message}`, 'error');
+                actualizarServerStatus('offline', '❌ Error de conexión');
+                
+                if (err.message.includes('ID is taken')) {
+                    peerId = `${miNombre}-${Date.now().toString(36).slice(-6)}${Math.random().toString(36).slice(-3)}`;
+                    logDebug(`🔄 Regenerando ID: ${peerId}`, 'warning');
+                    peer.destroy();
+                    iniciarPeerJS();
+                }
+                reject(err);
+            });
+
+            peer.on('disconnected', () => {
+                logDebug('⚠️ PeerJS desconectado, reconectando...', 'warning');
+                actualizarServerStatus('checking', '🔄 Reconectando...');
+                peer.reconnect();
+            });
+
+            peer.on('close', () => {
+                logDebug('🔴 PeerJS cerrado', 'warning');
+                actualizarServerStatus('offline', '🔴 Desconectado');
+                actualizarEstadoUI('desconectado', '⚪ Desconectado');
+            });
+
+            setTimeout(() => {
+                if (!peerId) {
+                    reject(new Error('Timeout conectando al servidor'));
+                }
+            }, 15000);
+        });
+    }
+
+    // ============================================
+    // OBTENER PEERS ACTIVOS
+    // ============================================
+    async function obtenerPeersActivos() {
+        try {
+            const url = `${window.location.origin}/peers`;
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                peersActivos = data.peers || [];
+                return peersActivos;
+            }
+        } catch (error) {
+            logDebug('❌ Error obteniendo peers: ' + error.message, 'error');
+        }
+        return [];
+    }
+
+    // ============================================
+    // MANEJAR CONEXIÓN ENTRANTE
+    // ============================================
+    function manejarConexionEntrante(conn) {
+        const peerIdRemoto = conn.peer;
+        
+        if (conexiones.has(peerIdRemoto)) {
+            conn.close();
+            return;
+        }
+
+        conexiones.set(peerIdRemoto, conn);
+        obtenerHistorial(peerIdRemoto);
+
+        if (llamandoA === peerIdRemoto) {
+            limpiarEstadoLlamada();
+        }
+
+        conn.on('open', () => {
+            logDebug(`✅ DataChannel abierto con: ${peerIdRemoto}`, 'success');
+            
+            if (peerIdSeleccionado === peerIdRemoto) {
+                actualizarEstadoUI('conectado', '✅ Conectado');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('statusBar').textContent = `✅ Conectado con ${peerIdRemoto}`;
+            }
+            
+            mostrarToast(`✅ Conectado con ${peerIdRemoto}`, 'success');
+            actualizarListaUsuarios();
+        });
+
+        conn.on('data', (data) => {
+            try {
+                const msg = JSON.parse(data);
+                const historial = obtenerHistorial(peerIdRemoto);
+                historial.push({
+                    texto: msg.texto,
+                    remitente: msg.remitente,
+                    timestamp: msg.timestamp || new Date().toISOString(),
+                    tipo: 'received'
+                });
+                historialMensajes.set(peerIdRemoto, historial);
+                guardarHistorial(peerIdRemoto);
+                
+                if (peerIdSeleccionado === peerIdRemoto) {
+                    agregarMensaje(msg.texto, 'received', msg.remitente);
+                }
+                
+                actualizarListaUsuarios();
+            } catch (e) {
+                logDebug('❌ Error al parsear mensaje: ' + e.message, 'error');
+            }
+        });
+
+        conn.on('close', () => {
+            logDebug(`🔴 DataChannel cerrado con: ${peerIdRemoto}`, 'warning');
+            conexiones.delete(peerIdRemoto);
+            
+            if (peerIdSeleccionado === peerIdRemoto) {
+                actualizarEstadoUI('desconectado', '⚪ Desconectado');
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendBtn').disabled = true;
+                document.getElementById('statusBar').textContent = '🔴 Desconectado';
+                mostrarToast(`🔴 Desconectado de ${peerIdRemoto}`, 'warning');
+            }
+            
+            actualizarListaUsuarios();
+        });
+
+        conn.on('error', (err) => {
+            logDebug(`❌ Error en DataChannel con ${peerIdRemoto}: ${err.message}`, 'error');
+        });
+    }
+
+    // ============================================
+    // CONECTAR A UN USUARIO
+    // ============================================
+    function conectarAUsuario(peerIdDestino, nombreUsuario) {
+        if (llamandoA !== null && llamandoA !== peerIdDestino) {
+            mostrarToast(`⏳ Ya estás llamando a otro usuario`, 'warning');
+            return;
+        }
+
+        if (conexiones.has(peerIdDestino)) {
+            const conn = conexiones.get(peerIdDestino);
+            if (conn.open) {
+                cambiarChatActivo(peerIdDestino, nombreUsuario);
+                return;
+            } else {
+                conexiones.delete(peerIdDestino);
+            }
+        }
+
+        if (!peerIdDestino) {
+            mostrarToast(`${nombreUsuario} no está disponible`, 'warning');
+            return;
+        }
+
+        limpiarEstadoLlamada();
+
+        llamandoA = peerIdDestino;
+        actualizarEstadoUI('llamando', `📞 Llamando a ${nombreUsuario}...`);
+        document.getElementById('statusBar').textContent = `⏳ Llamando a ${nombreUsuario}...`;
+        mostrarToast(`📞 Llamando a ${nombreUsuario}...`, 'info', 2000);
+        
+        cambiarChatActivo(peerIdDestino, nombreUsuario);
+        actualizarListaUsuarios();
+
+        logDebug(`📞 Conectando a ${nombreUsuario} (${peerIdDestino})`, 'info');
+
+        const conn = peer.connect(peerIdDestino, {
+            reliable: true
+        });
+
+        conexiones.set(peerIdDestino, conn);
+        obtenerHistorial(peerIdDestino);
+
+        if (timeoutLlamada) clearTimeout(timeoutLlamada);
+        timeoutLlamada = setTimeout(() => {
+            const connCheck = conexiones.get(peerIdDestino);
+            if (connCheck && !connCheck.open) {
+                logDebug(`⏰ Timeout de conexión con ${peerIdDestino}`, 'warning');
+                mostrarToast(`⏰ Tiempo de espera agotado con ${nombreUsuario}`, 'warning');
+                
+                if (llamandoA === peerIdDestino) {
+                    limpiarEstadoLlamada();
+                }
+                
+                conexiones.delete(peerIdDestino);
+                actualizarListaUsuarios();
+            }
+            timeoutLlamada = null;
+        }, 10000);
+
+        conn.on('open', () => {
+            logDebug(`✅ Conexión abierta con: ${peerIdDestino}`, 'success');
+            
+            if (timeoutLlamada) {
+                clearTimeout(timeoutLlamada);
+                timeoutLlamada = null;
+            }
+            
+            if (llamandoA === peerIdDestino) {
+                llamandoA = null;
+            }
+            
+            if (peerIdSeleccionado === peerIdDestino) {
+                actualizarEstadoUI('conectado', '✅ Conectado');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('statusBar').textContent = `✅ Conectado con ${nombreUsuario}`;
+            }
+            
+            mostrarToast(`✅ Conectado con ${nombreUsuario}`, 'success');
+            actualizarListaUsuarios();
+        });
+
+        conn.on('data', (data) => {
+            try {
+                const msg = JSON.parse(data);
+                const historial = obtenerHistorial(peerIdDestino);
+                historial.push({
+                    texto: msg.texto,
+                    remitente: msg.remitente,
+                    timestamp: msg.timestamp || new Date().toISOString(),
+                    tipo: 'received'
+                });
+                historialMensajes.set(peerIdDestino, historial);
+                guardarHistorial(peerIdDestino);
+                
+                if (peerIdSeleccionado === peerIdDestino) {
+                    agregarMensaje(msg.texto, 'received', msg.remitente);
+                }
+                
+                actualizarListaUsuarios();
+            } catch (e) {
+                logDebug('❌ Error al parsear mensaje: ' + e.message, 'error');
+            }
+        });
+
+        conn.on('close', () => {
+            logDebug(`🔴 Conexión cerrada con: ${peerIdDestino}`, 'warning');
+            conexiones.delete(peerIdDestino);
+            
+            if (llamandoA === peerIdDestino) {
+                limpiarEstadoLlamada();
+            }
+            
+            if (peerIdSeleccionado === peerIdDestino) {
+                actualizarEstadoUI('desconectado', '⚪ Desconectado');
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendBtn').disabled = true;
+                document.getElementById('statusBar').textContent = '🔴 Desconectado';
+                mostrarToast(`🔴 Desconectado de ${nombreUsuario}`, 'warning');
+            }
+            
+            actualizarListaUsuarios();
+        });
+
+        conn.on('error', (err) => {
+            logDebug(`❌ Error en conexión con ${peerIdDestino}: ${err.message}`, 'error');
+            
+            if (err.message.includes('Could not connect to peer')) {
+                mostrarToast(`❌ No se pudo conectar a ${nombreUsuario}`, 'error');
+                
+                if (llamandoA === peerIdDestino) {
+                    limpiarEstadoLlamada();
+                }
+                
+                conexiones.delete(peerIdDestino);
+                actualizarListaUsuarios();
+            }
+        });
+    }
+
+    // ============================================
+    // LIMPIAR ESTADO DE LLAMADA
+    // ============================================
+    function limpiarEstadoLlamada() {
+        if (timeoutLlamada) {
+            clearTimeout(timeoutLlamada);
+            timeoutLlamada = null;
+        }
+        
+        if (llamandoA) {
+            llamandoA = null;
+            actualizarEstadoUI('desconectado', '⚪ Libre');
+            document.getElementById('statusBar').textContent = '🔴 Desconectado';
+            actualizarListaUsuarios();
+        }
+    }
+
+    // ============================================
+    // CAMBIAR CHAT ACTIVO
+    // ============================================
+    function cambiarChatActivo(peerIdDestino, nombreUsuario) {
+        usuarioSeleccionado = nombreUsuario;
+        peerIdSeleccionado = peerIdDestino;
+
+        const conn = conexiones.get(peerIdDestino);
+        const estaConectado = conn && conn.open;
+        const estaLlamando = llamandoA === peerIdDestino;
+
+        if (estaConectado) {
+            actualizarEstadoUI('conectado', '✅ Conectado');
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('statusBar').textContent = `✅ Conectado con ${nombreUsuario}`;
+        } else if (estaLlamando) {
+            actualizarEstadoUI('llamando', `📞 Llamando a ${nombreUsuario}...`);
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('statusBar').textContent = `⏳ Llamando a ${nombreUsuario}...`;
+        } else {
+            actualizarEstadoUI('desconectado', '⚪ Desconectado');
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('statusBar').textContent = `💬 Chat con ${nombreUsuario}`;
+        }
+
+        mostrarHistorial(peerIdDestino);
+        actualizarListaUsuarios();
+    }
+
+    // ============================================
+    // MOSTRAR HISTORIAL
+    // ============================================
+    function mostrarHistorial(peerIdDestino) {
+        const area = document.getElementById('messagesArea');
+        if (!area) return;
+        
+        area.innerHTML = '';
+        
+        const historial = obtenerHistorial(peerIdDestino);
+        
+        if (historial.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-chat';
+            emptyDiv.innerHTML = `
+                <div class="icon">💬</div>
+                <p>No hay mensajes aún<br>Envía un saludo 👋</p>
+            `;
+            area.appendChild(emptyDiv);
+            return;
+        }
+        
+        historial.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = `message ${msg.tipo}`;
+            
+            const hora = new Date(msg.timestamp).toLocaleTimeString();
+            div.innerHTML = `
+                <strong style="font-size:12px;">${msg.remitente}</strong><br>
+                ${msg.texto}
+                <div class="time">${hora}</div>
+            `;
+            area.appendChild(div);
+        });
+        
+        area.scrollTop = area.scrollHeight;
+    }
+
+    // ============================================
+    // ENVIAR MENSAJE
+    // ============================================
+    function enviarMensaje() {
+        const input = document.getElementById('messageInput');
+        if (!input) return;
+        
+        const texto = input.value.trim();
+        
+        if (!texto) return;
+        if (!peerIdSeleccionado) {
+            mostrarToast('Selecciona un usuario primero', 'warning');
+            return;
+        }
+        
+        const conn = conexiones.get(peerIdSeleccionado);
+        if (!conn || !conn.open) {
+            mostrarToast('No hay conexión activa con este usuario', 'error');
+            return;
+        }
+
+        const mensaje = {
+            texto: texto,
+            remitente: miNombre,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            conn.send(JSON.stringify(mensaje));
+            logDebug(`📤 Mensaje enviado a ${peerIdSeleccionado}`, 'info');
+            
+            const historial = obtenerHistorial(peerIdSeleccionado);
+            historial.push({
+                texto: texto,
+                remitente: 'Yo',
+                timestamp: new Date().toISOString(),
+                tipo: 'sent'
+            });
+            historialMensajes.set(peerIdSeleccionado, historial);
+            guardarHistorial(peerIdSeleccionado);
+            
+            agregarMensaje(texto, 'sent', 'Yo');
+            input.value = '';
+            
+            actualizarListaUsuarios();
+        } catch (error) {
+            logDebug('❌ Error al enviar: ' + error.message, 'error');
+            mostrarToast('Error al enviar mensaje', 'error');
+        }
+    }
+
+    // ============================================
+    // AGREGAR MENSAJE (UI)
+    // ============================================
+    function agregarMensaje(texto, tipo, remitente) {
+        const area = document.getElementById('messagesArea');
+        if (!area) return;
+        
+        const emptyChat = area.querySelector('.empty-chat');
+        if (emptyChat) {
+            emptyChat.remove();
+        }
+        
+        const div = document.createElement('div');
+        div.className = `message ${tipo}`;
+        
+        const hora = new Date().toLocaleTimeString();
+        div.innerHTML = `
+            <strong style="font-size:12px;">${remitente}</strong><br>
+            ${texto}
+            <div class="time">${hora}</div>
+        `;
+        
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    // ============================================
+    // LOGIN
+    // ============================================
+    async function login() {
+        const nombre = document.getElementById('userNameInput').value.trim();
+        
+        if (!nombre) {
+            mostrarMensaje('⚠️ Ingresa un nombre de usuario', 'error');
+            return;
+        }
+
+        mostrarMensaje('⏳ Conectando...', 'info');
+        const btn = document.querySelector('.btn-login');
+        btn.disabled = true;
+        btn.textContent = '⏳ Conectando...';
+
+        try {
+            miNombre = nombre;
+            miId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            
+            await iniciarPeerJS();
+            
+            logDebug(`✅ Login exitoso: ${miNombre}`, 'success');
+            entrarAlChat();
+            
+            iniciarHeartbeat();
+
+        } catch (error) {
+            logDebug('❌ Error en login: ' + error.message, 'error');
+            mostrarMensaje('❌ Error al conectar: ' + error.message, 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Conectar';
+        }
+    }
+
+    // ============================================
+    // HEARTBEAT
+    // ============================================
+    function iniciarHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(async () => {
+            try {
+                await actualizarListaUsuarios();
+            } catch (error) {
+                logDebug('❌ Error en heartbeat: ' + error.message, 'error');
+            }
+        }, 3000);
+    }
+
+    function detenerHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+    }
+
+    // ============================================
+    // ENTRAR AL CHAT
+    // ============================================
+    function entrarAlChat() {
+        document.getElementById('loginPanel').style.display = 'none';
+        document.getElementById('chatPanel').style.display = 'flex';
+        document.getElementById('miNombreBadge').textContent = miNombre;
+        document.getElementById('logoutBtn').style.display = 'inline';
+        document.getElementById('statusBar').textContent = `🟢 Conectado como ${miNombre}`;
+        
+        actualizarEstadoUI('desconectado', '⚪ Libre');
+        
+        const area = document.getElementById('messagesArea');
+        if (area) {
+            area.innerHTML = `
+                <div class="empty-chat">
+                    <div class="icon">💬</div>
+                    <p>Selecciona un usuario<br>para comenzar a chatear</p>
+                </div>
+            `;
+        }
+        
+        document.getElementById('mensajeLogin').textContent = '';
+        logDebug('🎯 Entrando al chat...', 'success');
+        mostrarToast(`Bienvenido ${miNombre}`, 'success');
+        
+        document.querySelector('.btn-login').disabled = false;
+        document.querySelector('.btn-login').textContent = '🚀 Conectar';
+    }
+
+    // ============================================
+    // CERRAR SESIÓN
+    // ============================================
+    function cerrarSesion() {
+        logDebug('🔴 Cerrando sesión...', 'warning');
+        
+        detenerHeartbeat();
+        
+        if (timeoutLlamada) {
+            clearTimeout(timeoutLlamada);
+            timeoutLlamada = null;
+        }
+        
+        for (const [peerId, mensajes] of historialMensajes) {
+            guardarHistorialLocal(peerId, mensajes);
+        }
+        
+        for (const [peerId, conn] of conexiones) {
+            try { conn.close(); } catch(e) {}
+        }
+        conexiones.clear();
+        llamandoA = null;
+        
+        if (peer) {
+            peer.destroy();
+            peer = null;
+        }
+
+        usuarioSeleccionado = null;
+        peerIdSeleccionado = null;
+        estadoActual = 'libre';
+
+        document.getElementById('chatPanel').style.display = 'none';
+        document.getElementById('loginPanel').style.display = 'flex';
+        document.getElementById('logoutBtn').style.display = 'none';
+        document.getElementById('mensajeLogin').textContent = '🔓 Sesión cerrada';
+        document.getElementById('messagesArea').innerHTML = '';
+        actualizarEstadoUI('desconectado', '⚪ Desconectado');
+        actualizarServerStatus('offline', '🔴 Desconectado');
+        mostrarToast('Sesión cerrada', 'info');
+    }
+
+    // ============================================
+    // ACTUALIZAR LISTA DE USUARIOS
+    // ============================================
+    async function actualizarListaUsuarios() {
+        try {
+            const peers = await obtenerPeersActivos();
+            const container = document.getElementById('userList');
+            if (!container) return;
+            
+            const otrosPeers = peers.filter(p => p !== peerId);
+            
+            container.innerHTML = '';
+            
+            if (otrosPeers.length === 0) {
+                container.innerHTML = '<div class="no-users">No hay otros usuarios en línea</div>';
+                return;
+            }
+
+            otrosPeers.forEach(peerIdRemoto => {
+                const div = document.createElement('div');
+                div.className = 'user-item';
+                
+                const nombreRemoto = peerIdRemoto.split('-').slice(0, -1).join('-') || peerIdRemoto;
+                
+                const esActivo = peerIdSeleccionado === peerIdRemoto;
+                const estaLlamando = llamandoA === peerIdRemoto;
+                const estaConectado = conexiones.has(peerIdRemoto) && conexiones.get(peerIdRemoto).open;
+                
+                const historial = obtenerHistorial(peerIdRemoto);
+                const noLeidos = historial.filter(m => m.tipo === 'received').length;
+                
+                if (esActivo) {
+                    div.classList.add('active');
+                }
+                
+                const deshabilitado = llamandoA !== null && llamandoA !== peerIdRemoto;
+                if (deshabilitado) {
+                    div.classList.add('disabled');
+                }
+                
+                let estadoTexto = '';
+                let estadoClase = 'online';
+                
+                if (estaConectado) {
+                    estadoTexto = ' ✅ Conectado';
+                    estadoClase = 'online';
+                } else if (estaLlamando) {
+                    estadoTexto = ' ⏳ Llamando...';
+                    estadoClase = 'llamando';
+                } else {
+                    estadoTexto = ' 🟢 En línea';
+                    estadoClase = 'online';
+                }
+                
+                div.innerHTML = `
+                    <span class="user-name">
+                        <span class="status ${estadoClase}"></span>
+                        ${nombreRemoto}
+                        ${estadoTexto}
+                    </span>
+                    ${noLeidos > 0 ? `<span class="badge-msgs">${noLeidos}</span>` : ''}
+                `;
+                
+                div.addEventListener('click', () => {
+                    if (deshabilitado) {
+                        mostrarToast(`⏳ Ya estás llamando a otro usuario`, 'warning');
+                        return;
+                    }
+                    
+                    if (peerIdSeleccionado === peerIdRemoto) return;
+                    
+                    conectarAUsuario(peerIdRemoto, nombreRemoto);
+                });
+                
+                container.appendChild(div);
+            });
+        } catch (error) {
+            logDebug('❌ Error actualizando lista: ' + error.message, 'error');
+        }
+    }
+
+    // ============================================
+    // UTILIDADES
+    // ============================================
+    function mostrarMensaje(texto, tipo) {
+        const el = document.getElementById('mensajeLogin');
+        if (el) {
+            el.textContent = texto;
+            el.className = tipo === 'error' ? 'error-msg' : 
+                           tipo === 'success' ? 'success-msg' : 'error-msg';
+        }
+    }
+
+    // ============================================
+    // EVENTOS
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+        // Verificar estado del servidor
+        fetch(`${window.location.origin}/status`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'online') {
+                    actualizarServerStatus('online', `🟢 Servidor en Render (${data.peers} peers)`);
+                }
+            })
+            .catch(() => {
+                actualizarServerStatus('offline', '🔴 Servidor no disponible');
+            });
+        
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') enviarMensaje();
+            });
+        }
+        
+        const userNameInput = document.getElementById('userNameInput');
+        if (userNameInput) {
+            userNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+        }
+    });
+
+    // Limpiar al cerrar
+    window.addEventListener('beforeunload', () => {
+        detenerHeartbeat();
+        if (timeoutLlamada) clearTimeout(timeoutLlamada);
+        
+        for (const [peerId, mensajes] of historialMensajes) {
+            guardarHistorialLocal(peerId, mensajes);
+        }
+        
+        for (const [peerId, conn] of conexiones) {
+            try { conn.close(); } catch(e) {}
+        }
+        
+        if (peer) {
+            peer.destroy();
+        }
+    });
+</script>
+
+</body>
+</html>

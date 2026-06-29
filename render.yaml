@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: chat-p2p-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+    healthCheckPath: /status
+    autoDeploy: true
